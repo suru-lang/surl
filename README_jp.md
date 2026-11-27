@@ -4,7 +4,7 @@
 
 日本語のプログラミング言語「[する](https://github.com/suru-lang/suru)」で書いた、HTTP と HTTPS の curl のようなコマンドです。[suru-lang/http](https://github.com/suru-lang/http) のクライアントの上に書いてあり、1つのバイナリになります。オプションは curl と同じ綴りで、終了コードも curl に合わせてあるので、curl を覚えた手やスクリプトでそのまま使えます。
 
-段階を分けて作っています(計画: [#1](https://github.com/suru-lang/surl/issues/1))。この版では、方法・見出し・データを付けて要求を送り、本文を書き出し、見出しや時間を見られます。
+段階を分けて作っています(計画: [#1](https://github.com/suru-lang/surl/issues/1))。この版では、方法・見出し・データを付けて要求を送り、本文を書き出し、見出しや時間を見て、転送をたどれます。
 
 ## 作り方
 
@@ -30,6 +30,7 @@ surl -X DELETE -H "Authorization: Bearer x" https://example.com/item/1
 surl -I https://example.com/              # 見出しだけ
 surl -v https://example.com/              # 送るものと届いたものを標準エラーに
 surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
+surl -L http://example.com/old            # 転送をたどる
 ```
 
 | オプション | 意味 |
@@ -57,6 +58,8 @@ surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
 | `-v`、`--verbose` | 送る頭(`> `)と届いた頭(`< `)を標準エラーに出す |
 | `-D 道`、`--dump-header 道` | 状態行と見出しを道に書く(`-` なら標準出力) |
 | `-w 書式`、`--write-out 書式` | 終わった後に書く(`%{http_code}`・`%{response_code}`・`%{size_download}`・`%{size_header}`・`%{time_total}`・`%{url_effective}`・`%{content_type}`・`%{method}`・`%{num_redirects}`) |
+| `-L`、`--location` | `Location` のある 301・302・303・307・308 をたどる |
+| `--max-redirs 数` | たどる転送の数の上限(既定 50、-1 なら上限なし) |
 | `-h`、`--help` | 使い方を出す |
 | `-V`、`--version` | 版を出す |
 
@@ -71,6 +74,7 @@ surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
 | 22 | `-f` で状態が 400 以上 |
 | 23 | 書き出せない、`-O` の名前がない(新しい curl は代わりに `curl_response` に書きます) |
 | 35 | TLS で失敗した |
+| 47 | 転送が `--max-redirs` を超えた |
 | 56 | 受け取る途中で切れた |
 | 60 | 証明書を確かめられない |
 
@@ -113,7 +117,15 @@ surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
 
 1. **見出しは届いたまま書く。** `-i`・`-I`・`-D` は、状態行を届いたまま(`HTTP/1.1 200 OK`)、見出しの名前を元の綴りのまま、CRLF で書き、最後に空の行を書きます(curl と同じ)。
 2. **`-v` は送るとおりの要求を見せる。** `> ` の行は http の `要求頭文にする` から作るので、既定の見出しも入ります。`* ` の行(つなぐところの様子)はまだなく、本文は見せません。
-3. **`-w`。** `\n`・`\t`・`\r`・`\\` は文字に、`%%` は `%` にします。`%{time_total}` は要求を送り始めてから本文の終わりまでの秒数(小数点の下6桁)です。`%{num_redirects}` は `-L` ができるまで 0 です。知らない `%{…}` はそのまま残し、`@ファイル` はまだ読みません。
+3. **`-w`。** `\n`・`\t`・`\r`・`\\` は文字に、`%%` は `%` にします。`%{time_total}` は要求を送り始めてから本文の終わりまでの秒数(小数点の下6桁)です。`%{num_redirects}` はたどった転送の数、`%{url_effective}` は最後の URL で、`%{size_header}` はすべての応答の見出しを数えます。知らない `%{…}` はそのまま残し、`@ファイル` はまだ読みません。
+
+### 転送をたどる
+
+1. **たどるもの。** `-L` のとき、`Location` 見出しのある 301・302・303・307・308 の応答をたどり、その本文は読みません。`-L` がなければ、転送の応答そのものが答えです(終了コード 0)。`--max-redirs` を超えると終了コード 47 です。
+2. **方法は curl と同じに変える。** データを送る要求(`-X` が何でも)は 301・302 の後で、`-I` 以外の要求は 303 の後で本文を送りません。`-X` がなければ GET になり、`-X` があれば方法はそのままです。307・308 は同じ方法と本文をもう一度送ります。`-G` のデータは最初の URL に付けたので、もう付けません。
+3. **Location の読み方。** 絶対の URL・`//主機/道`・`/道`・`?問い`・相対の道を、今の URL から読みます。道の中の `.` と `..` はそのまま送ります。
+4. **認証は同じ主機にだけ。** 主機が変わると、`-u` と `-H` の `Authorization`・`Cookie` は送りません(`--location-trusted` はありません)。`-b` は送ります。
+5. **応答の頭はすべて見せる。** `-i`・`-I`・`-D`・`-v` は、curl と同じく、たどった応答の頭を順にすべて見せます。本文は最後のものだけを書きます。`-O` の名前は最初の URL から取ります。
 
 ### 終了コード
 
@@ -131,7 +143,7 @@ kumu 点検
 
 ## 今後の候補
 
-次の段階は [#1](https://github.com/suru-lang/surl/issues/1) にあります: 転送をたどる(`-L`)、時間切れとやり直し、`kumu 導入` で入れる。
+次の段階は [#1](https://github.com/suru-lang/surl/issues/1) にあります: 時間切れとやり直し、`kumu 導入` で入れる。
 
 ## ライセンス
 
