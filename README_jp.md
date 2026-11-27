@@ -6,15 +6,17 @@
 
 段階を分けて作っています(計画: [#1](https://github.com/suru-lang/surl/issues/1))。この版では、方法・見出し・データを付けて要求を送り、本文を書き出し、見出しや時間を見て、転送をたどり、時間の限りであきらめたりやり直したりできます。
 
-## 作り方
+## 入れ方と作り方
 
 [kumu](https://github.com/suru-lang/suru/blob/main/README_jp.md) で:
 
 ```sh
-kumu 作る          # 出力/surl を作る
+kumu 導入 github.com/suru-lang/surl   # 一番新しい版を作って ~/.local/bin に surl を入れる
+kumu 作る                             # このリポジトリを clone したところで: 出力/surl を作る
+kumu 導入                             # clone したところで: 作ったものを ~/.local/bin に入れる
 ```
 
-する 0.10.0 以上と、OpenSSL の開発用のファイルが要ります([suru-lang/http](https://github.com/suru-lang/http/blob/main/README_jp.md#クライアント) のクライアントと同じです)。
+`kumu 導入` は、`~/.local/bin` が PATH になければ足し方を出します。`--先 フォルダ` でほかの場所に入れられます。する 0.12.0 以上(0.11.0 の次の版で、`kumu 導入` と時間を限ってつなぐのがあるもの)と、OpenSSL の開発用のファイルが要ります([suru-lang/http](https://github.com/suru-lang/http/blob/main/README_jp.md#クライアント) のクライアントと同じです)。
 
 ## 使い方
 
@@ -155,7 +157,7 @@ kumu 点検
 
 ## 今後の候補
 
-次の段階は [#1](https://github.com/suru-lang/surl/issues/1) にあります: `kumu 導入` で入れる。ほかの候補: `-v` の `* ` の行、`-w @ファイル`、`-#`、`--retry-max-time`、`Retry-After`。
+候補(計画は [#1](https://github.com/suru-lang/surl/issues/1)): する がなくても入れられるように GitHub Releases に OS ごとのバイナリを置く、`-v` の `* ` の行、`-w @ファイル`、`-#`、`--retry-max-time`、`Retry-After`。
 
 ## ライセンス
 

@@ -6,15 +6,17 @@ A curl-like command for HTTP and HTTPS, written in [Suru](https://github.com/sur
 
 It is being built in stages (plan: [#1](https://github.com/suru-lang/surl/issues/1)). This version can send requests with methods, headers and data, write the body, show the headers and timings, follow redirects, and give up or retry on time limits.
 
-## Building
+## Installing and building
 
 With [kumu](https://github.com/suru-lang/suru/blob/main/README.md):
 
 ```sh
-kumu 作る          # makes 出力/surl
+kumu 導入 github.com/suru-lang/surl   # build the newest version and put surl in ~/.local/bin
+kumu 作る                             # in a clone of this repository: makes 出力/surl
+kumu 導入                             # in a clone: put that build in ~/.local/bin
 ```
 
-It needs Suru 0.10.0 or later and OpenSSL's development files (the same as the client of [suru-lang/http](https://github.com/suru-lang/http/blob/main/README.md#client)).
+`kumu 導入` says how to add `~/.local/bin` to PATH if it is missing, and `--先 フォルダ` puts surl somewhere else. It needs Suru 0.12.0 or later (the version after 0.11.0, with `kumu 導入` and connecting with a time limit) and OpenSSL's development files (the same as the client of [suru-lang/http](https://github.com/suru-lang/http/blob/main/README.md#client)).
 
 ## Usage
 
@@ -155,7 +157,7 @@ The tests in `試験/` read arguments, and fetch from a small server started in 
 
 ## Future work
 
-The next stage is in [#1](https://github.com/suru-lang/surl/issues/1): installing with `kumu 導入`. Other candidates: `* ` lines of `-v`, `-w @file`, `-#`, `--retry-max-time`, `Retry-After`.
+Candidates (plan: [#1](https://github.com/suru-lang/surl/issues/1)): binaries for each OS on GitHub Releases, so that surl can be installed without Suru, `* ` lines of `-v`, `-w @file`, `-#`, `--retry-max-time`, `Retry-After`.
 
 ## License
 
