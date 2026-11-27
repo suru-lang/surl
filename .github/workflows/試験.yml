@@ -87,4 +87,12 @@ jobs:
           same -H "User-Agent: hh" -A myua $U/h
           [ "$(echo hi | "$S" -d @- $U/s | tail -1)" = "hi" ]
           "$S" -I $U/h | head -1 | grep -q '^HTTP/1.1 200 OK'
+          # 見る: -i・-D・-v・-w
+          [ "$("$S" -i $U/i | head -1 | tr -d '\r')" = "$(curl -s -i $U/i | head -1 | tr -d '\r')" ]
+          "$S" -s -D 出力/頭 -o /dev/null $U/d && grep -q '^X-Up: Yes' 出力/頭
+          "$S" -v $U/v 2>&1 >/dev/null | grep -qx '> GET /v HTTP/1.1'
+          "$S" -v $U/v 2>&1 >/dev/null | grep -qx '< HTTP/1.1 200 OK'
+          F='%{http_code} %{response_code} %{method} %{url_effective} %{num_redirects}\n'
+          [ "$("$S" -s -o /dev/null -w "$F" $U/w)" = "$(curl -s -o /dev/null -w "$F" $U/w)" ]
+          [ "$("$S" -s -o /dev/null -w '%{size_download}' $U/w)" -gt 0 ]
           kill %1
