@@ -4,7 +4,7 @@
 
 日本語のプログラミング言語「[する](https://github.com/suru-lang/suru)」で書いた、HTTP と HTTPS の curl のようなコマンドです。[suru-lang/http](https://github.com/suru-lang/http) のクライアントの上に書いてあり、1つのバイナリになります。オプションは curl と同じ綴りで、終了コードも curl に合わせてあるので、curl を覚えた手やスクリプトでそのまま使えます。
 
-段階を分けて作っています(計画: [#1](https://github.com/suru-lang/surl/issues/1))。この版では GET して本文を書き出せます。
+段階を分けて作っています(計画: [#1](https://github.com/suru-lang/surl/issues/1))。この版では、方法・見出し・データを付けて要求を送り、本文を書き出せます。
 
 ## 作り方
 
@@ -24,6 +24,10 @@ surl -o 印.png https://example.com/印.png  # ファイルへ(バイナリも�
 surl -O https://example.com/a/印.png      # 印.png へ
 surl -sSf https://example.com/none        # 404 なら何も出さず、終了コード 22
 surl example.com                          # スキームを省くと http://
+surl -d name=する https://example.com/post # フォームを POST
+surl --json '{"a":1}' https://example.com/api
+surl -X DELETE -H "Authorization: Bearer x" https://example.com/item/1
+surl -I https://example.com/              # 見出しだけ
 ```
 
 | オプション | 意味 |
@@ -34,6 +38,19 @@ surl example.com                          # スキームを省くと http://
 | `-S`、`--show-error` | `-s` でも失敗は知らせる |
 | `-f`、`--fail` | 状態が 400 以上なら本文を書かずに 22 で終わる |
 | `--url URL` | 取る URL |
+| `-X 方法`、`--request 方法` | 方法(GET・POST など) |
+| `-H "名前: 値"`、`--header` | 見出しを足す(値のない `名前:` は既定の見出しを消す) |
+| `-d データ`、`--data` | POST で送る(`@道` はファイル、`@-` は標準入力。改行は除く) |
+| `--data-binary データ` | そのまま送る(`@道`・`@-` も) |
+| `--data-raw データ` | `@` を特別に扱わずに送る |
+| `--data-urlencode データ` | %XX にして送る(`内容`・`=内容`・`名前=内容`・`@道`・`名前@道`) |
+| `--json データ` | JSON として送る(Content-Type と Accept を付ける) |
+| `-G`、`--get` | データを URL の `?` の後ろに付けて GET する |
+| `-I`、`--head` | HEAD して、状態行と見出しだけを書く |
+| `-A 名前`、`--user-agent` | User-Agent |
+| `-e URL`、`--referer` | Referer |
+| `-b "a=1; b=2"`、`--cookie` | Cookie |
+| `-u 利用者:合言葉`、`--user` | Basic 認証 |
 | `-h`、`--help` | 使い方を出す |
 | `-V`、`--version` | 版を出す |
 
@@ -79,6 +96,13 @@ surl example.com                          # スキームを省くと http://
 3. **URL は順に取り、最初の失敗で止める。** 終了コードはその失敗のものです。
 4. **`-o` のファイルは見出しが届いてから開く。** `-f` で状態が 400 以上なら、ファイルを作りません。
 
+### 送る
+
+1. **方法。** `-X` が一番です。なければ `-I` は HEAD、データがあれば POST(`-G` なら GET)、ほかは GET です。
+2. **データは `&` でつなぐ。** `-d`・`--data-binary`・`--data-raw`・`--data-urlencode`・`--json` をそれぞれバイト列にして、curl と同じく `&` でつなぎます(`--json` だけなら、つながずに並べます)。`-d` はファイルの改行と復帰を除きます。`--data-urlencode` は空白を `+` にし、英数字と `- . _ ~` はそのままにします。
+3. **オプションから既定の見出しを足す。** データがあれば `Content-Type: application/x-www-form-urlencoded`(`--json` なら `application/json` と `Accept: application/json`)。`-A`・`-e`・`-b`・`-u` は `User-Agent`・`Referer`・`Cookie`・`Authorization` です。`-H` で同じ名前を渡せば `-H` のほうを使い、`-H "名前:"` は http の既定の見出し(`Accept` など)を消します。
+4. **`-b` はクッキーの文字列だけ。** curl は値に `=` がなければクッキーのファイルとして読みますが、surl はそのまま送ります。
+
 ### 終了コード
 
 1. **番号は curl に合わせる。** 本体と http の失敗の文から決めます(たとえば `接続する` の失敗で、理由が名前のことなら 6、ほかは 7)。知らせは日本語で、curl と同じく番号を括弧に入れます: `surl: (7) 『127.0.0.1:1』につなげませんでした(Connection refused)`。
@@ -91,11 +115,11 @@ kumu 試験
 kumu 点検
 ```
 
-`試験/` の試験は、引数を読むことと、同じプロセスのスレッドで立てた小さなサーバーから取ることを確かめます。CI では `surl` を作り、手元のサーバーを相手に、本文と終了コードが curl と同じになるかを Linux と macOS で確かめます。
+`試験/` の試験は、引数を読むことと、同じプロセスのスレッドで立てた小さなサーバーから取ることを確かめます。CI では `surl` を作り、手元のサーバーを相手に、本文・終了コード・送るもの(方法・道・見出し・本文を、そのまま返すサーバー `.github/試験/こだま.py` で読み返す)が curl と同じになるかを Linux と macOS で確かめます。
 
 ## 今後の候補
 
-次の段階は [#1](https://github.com/suru-lang/surl/issues/1) にあります: 送る(`-X`・`-H`・`-d` など)、見る(`-i`・`-v`・`-w` など)、転送をたどる(`-L`)、時間切れとやり直し、`kumu 導入` で入れる。
+次の段階は [#1](https://github.com/suru-lang/surl/issues/1) にあります: 見る(`-i`・`-v`・`-w` など)、転送をたどる(`-L`)、時間切れとやり直し、`kumu 導入` で入れる。
 
 ## ライセンス
 
