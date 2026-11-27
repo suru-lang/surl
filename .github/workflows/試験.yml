@@ -1,0 +1,67 @@
+# kumu 試験 と kumu 点検 を Linux と macOS で動かし、surl を作って、curl と同じ答えになるかを手元のサーバーで確かめます。
+name: 試験
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: clang と OpenSSL を入れる(Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang libssl-dev
+      - name: OpenSSL の pkg-config を探せるようにする(macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew list openssl@3 > /dev/null 2>&1 || brew install openssl@3
+          echo "PKG_CONFIG_PATH=$(brew --prefix openssl@3)/lib/pkgconfig" >> "$GITHUB_ENV"
+      - name: kumu と suruc を入れる
+        # @main は Go のモジュールのプロキシが少し前の main を覚えていることがあるので、GitHub から直接取る
+        env:
+          GOPROXY: direct
+          GONOSUMDB: github.com/suru-lang/*
+        run: |
+          go install github.com/suru-lang/suru/cmd/kumu@main
+          go install github.com/suru-lang/suru/cmd/suruc@main
+      - name: 試験
+        run: ~/go/bin/kumu 試験
+      - name: 点検
+        run: ~/go/bin/kumu 点検
+      - name: curl と比べる
+        run: |
+          ~/go/bin/kumu 作る
+          S="$PWD/出力/surl"
+          mkdir -p 出力/www 出力/取得 && cd 出力/www
+          head -c 300000 /dev/urandom > r.bin
+          printf 'こんにちは\n' > a.txt
+          python3 -m http.server 18555 > ../http.log 2>&1 &
+          for i in $(seq 50); do curl -s -o /dev/null http://127.0.0.1:18555/ && break; sleep 0.2; done
+          cd ../取得
+          U=http://127.0.0.1:18555
+          "$S" $U/a.txt | cmp - <(curl -s $U/a.txt)
+          "$S" -o r.bin 127.0.0.1:18555/r.bin && cmp r.bin ../www/r.bin
+          "$S" $U/r.bin | cmp - ../www/r.bin
+          "$S" -O $U/a.txt && cmp a.txt ../www/a.txt
+          code() { "$@" > /dev/null 2>&1; echo $?; }
+          check() { want=$1; shift; got=$(code "$S" "$@"); curlgot=$(code curl "$@"); echo "$* → surl $got / curl $curlgot"; [ "$got" = "$want" ] && [ "$curlgot" = "$want" ]; }
+          check 0 -s $U/none
+          check 22 -sf $U/none
+          check 7 -s http://127.0.0.1:1/
+          check 6 -s http://nonexistent.invalid/
+          check 23 -s -O $U/
+          check 2 -s --zz $U/
+          kill %1
