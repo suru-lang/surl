@@ -66,3 +66,25 @@ jobs:
           [ "$(code "$S" -s -O $U/)" = 23 ]
           check 2 -s --zz $U/
           kill %1
+      - name: 送るものを curl と比べる
+        run: |
+          python3 .github/試験/こだま.py 18556 &
+          for i in $(seq 50); do curl -s -o /dev/null http://127.0.0.1:18556/ && break; sleep 0.2; done
+          S="$PWD/出力/surl"; U=http://127.0.0.1:18556
+          printf 'a\nb\r\n' > 出力/d.txt
+          # 見出しの順と User-Agent は違ってよいので、並べ替えて User-Agent をそろえてから比べる
+          same() { a=$("$S" "$@" | sed 's/^User-Agent: suru-http/User-Agent: X/' | sort); b=$(curl -s "$@" | sed 's/^User-Agent: curl.*/User-Agent: X/' | sort); echo "$*"; [ "$a" = "$b" ] || { diff <(echo "$a") <(echo "$b"); false; }; }
+          same $U/x
+          same -d a=1 -d b=2 $U/p
+          same -d @出力/d.txt $U/p
+          same --data-binary @出力/d.txt $U/p
+          same --data-raw @x $U/p
+          same --data-urlencode "q=a b&c" --data-urlencode "=x/y" --data-urlencode "z z" --data-urlencode "n@出力/d.txt" $U/p
+          same -G -d a=1 -d b=2 "$U/g?x=0"
+          same --json '{"a":1}' --json '[2]' $U/j
+          same -X DELETE -H "X-A: 1" -H "Accept:" $U/h
+          same -A myua -e http://ref/ -b "a=1" -u "u:p" $U/h
+          same -H "User-Agent: hh" -A myua $U/h
+          [ "$(echo hi | "$S" -d @- $U/s | tail -1)" = "hi" ]
+          "$S" -I $U/h | head -1 | grep -q '^HTTP/1.1 200 OK'
+          kill %1
