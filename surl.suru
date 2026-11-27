@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 sugarsweetrobotics(LICENSE)
+# surl: する で書いた curl のようなコマンド(HTTP と HTTPS)。
+#   surl [オプション] URL …
+# オプションは curl と同じ綴りです(使い方は surl --help)。終了コードも curl に合わせます。
+
+「環境」 を 読み込む
+「引数」 を 読み込む
+「取得」 を 読み込む
+
+始めする とは 以下の入出力手順です
+  引数 とは 環境内の引数取得した 結果
+  番 とは （引数 を 引数内の引数解釈する） を 取得内のコマンド実行した 結果
+  番 を 環境内の終了する
+  以上です
+始めする
