@@ -4,7 +4,7 @@
 
 A curl-like command for HTTP and HTTPS, written in [Suru](https://github.com/suru-lang/suru), the Japanese programming language. It is built on the client of [suru-lang/http](https://github.com/suru-lang/http) and becomes one binary. The options are spelled as in curl, and the exit codes follow curl, so hands and scripts that know curl can use it as is.
 
-It is being built in stages (plan: [#1](https://github.com/suru-lang/surl/issues/1)). This version can send requests with methods, headers and data, and write the body.
+It is being built in stages (plan: [#1](https://github.com/suru-lang/surl/issues/1)). This version can send requests with methods, headers and data, write the body, and show the headers and timings.
 
 ## Building
 
@@ -28,6 +28,8 @@ surl -d name=する https://example.com/post # POST a form
 surl --json '{"a":1}' https://example.com/api
 surl -X DELETE -H "Authorization: Bearer x" https://example.com/item/1
 surl -I https://example.com/              # headers only
+surl -v https://example.com/              # what is sent and what comes back, on standard error
+surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
 ```
 
 | Option | Meaning |
@@ -51,6 +53,10 @@ surl -I https://example.com/              # headers only
 | `-e URL`, `--referer` | Referer |
 | `-b "a=1; b=2"`, `--cookie` | Cookie |
 | `-u 利用者:合言葉`, `--user` | Basic authentication |
+| `-i`, `--include` | Write the status line and headers before the body |
+| `-v`, `--verbose` | Show the request head (`> `) and the response head (`< `) on standard error |
+| `-D 道`, `--dump-header 道` | Write the status line and headers to the path (`-` is standard output) |
+| `-w 書式`, `--write-out 書式` | Write after the transfer (`%{http_code}`, `%{response_code}`, `%{size_download}`, `%{size_header}`, `%{time_total}`, `%{url_effective}`, `%{content_type}`, `%{method}`, `%{num_redirects}`) |
 | `-h`, `--help` | Print the usage |
 | `-V`, `--version` | Print the version |
 
@@ -103,6 +109,12 @@ The body itself can also be used from Suru: `取得内のコマンド実行す�
 3. **Default headers from options.** Data adds `Content-Type: application/x-www-form-urlencoded` (`application/json` and `Accept: application/json` with `--json`). `-A`, `-e`, `-b` and `-u` add `User-Agent`, `Referer`, `Cookie` and `Authorization`. A header of the same name given with `-H` wins, and `-H "名前:"` removes a default header of http (such as `Accept`).
 4. **`-b` is the cookie string only.** curl also reads a file of cookies when the value has no `=`; surl sends it as it is.
 
+### Looking
+
+1. **Headers are written as they arrived.** `-i`, `-I` and `-D` write the status line as received (`HTTP/1.1 200 OK`) and the header names in their original spelling, with CRLF, then a blank line, as curl does.
+2. **`-v` shows the request exactly as sent.** The `> ` lines come from http's `要求頭文にする`, so they include the default headers. There are no `* ` lines yet (connection details), and the body is not shown.
+3. **`-w`.** `\n`, `\t`, `\r` and `\\` are turned into the characters and `%%` into `%`. `%{time_total}` is seconds with six decimals, from sending the request to the end of the body. `%{num_redirects}` is 0 until `-L` comes. Unknown `%{…}` are left as they are, and `@file` is not read yet.
+
 ### Exit codes
 
 1. **The numbers follow curl.** They are decided from the text of the failure of the core and of http (for example, a failure of `接続する` whose reason is about the name is 6, and otherwise 7). The messages are in Japanese, with the number in parentheses as in curl: `surl: (7) 『127.0.0.1:1』につなげませんでした(Connection refused)`.
@@ -119,7 +131,7 @@ The tests in `試験/` read arguments, and fetch from a small server started in 
 
 ## Future work
 
-The next stages are in [#1](https://github.com/suru-lang/surl/issues/1): looking (`-i`, `-v`, `-w`, …), following redirects (`-L`), timeouts and retries, and installing with `kumu 導入`.
+The next stages are in [#1](https://github.com/suru-lang/surl/issues/1): following redirects (`-L`), timeouts and retries, and installing with `kumu 導入`.
 
 ## License
 

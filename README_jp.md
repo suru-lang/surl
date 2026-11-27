@@ -4,7 +4,7 @@
 
 日本語のプログラミング言語「[する](https://github.com/suru-lang/suru)」で書いた、HTTP と HTTPS の curl のようなコマンドです。[suru-lang/http](https://github.com/suru-lang/http) のクライアントの上に書いてあり、1つのバイナリになります。オプションは curl と同じ綴りで、終了コードも curl に合わせてあるので、curl を覚えた手やスクリプトでそのまま使えます。
 
-段階を分けて作っています(計画: [#1](https://github.com/suru-lang/surl/issues/1))。この版では、方法・見出し・データを付けて要求を送り、本文を書き出せます。
+段階を分けて作っています(計画: [#1](https://github.com/suru-lang/surl/issues/1))。この版では、方法・見出し・データを付けて要求を送り、本文を書き出し、見出しや時間を見られます。
 
 ## 作り方
 
@@ -28,6 +28,8 @@ surl -d name=する https://example.com/post # フォームを POST
 surl --json '{"a":1}' https://example.com/api
 surl -X DELETE -H "Authorization: Bearer x" https://example.com/item/1
 surl -I https://example.com/              # 見出しだけ
+surl -v https://example.com/              # 送るものと届いたものを標準エラーに
+surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
 ```
 
 | オプション | 意味 |
@@ -51,6 +53,10 @@ surl -I https://example.com/              # 見出しだけ
 | `-e URL`、`--referer` | Referer |
 | `-b "a=1; b=2"`、`--cookie` | Cookie |
 | `-u 利用者:合言葉`、`--user` | Basic 認証 |
+| `-i`、`--include` | 本文の前に状態行と見出しを書く |
+| `-v`、`--verbose` | 送る頭(`> `)と届いた頭(`< `)を標準エラーに出す |
+| `-D 道`、`--dump-header 道` | 状態行と見出しを道に書く(`-` なら標準出力) |
+| `-w 書式`、`--write-out 書式` | 終わった後に書く(`%{http_code}`・`%{response_code}`・`%{size_download}`・`%{size_header}`・`%{time_total}`・`%{url_effective}`・`%{content_type}`・`%{method}`・`%{num_redirects}`) |
 | `-h`、`--help` | 使い方を出す |
 | `-V`、`--version` | 版を出す |
 
@@ -103,6 +109,12 @@ surl -I https://example.com/              # 見出しだけ
 3. **オプションから既定の見出しを足す。** データがあれば `Content-Type: application/x-www-form-urlencoded`(`--json` なら `application/json` と `Accept: application/json`)。`-A`・`-e`・`-b`・`-u` は `User-Agent`・`Referer`・`Cookie`・`Authorization` です。`-H` で同じ名前を渡せば `-H` のほうを使い、`-H "名前:"` は http の既定の見出し(`Accept` など)を消します。
 4. **`-b` はクッキーの文字列だけ。** curl は値に `=` がなければクッキーのファイルとして読みますが、surl はそのまま送ります。
 
+### 見る
+
+1. **見出しは届いたまま書く。** `-i`・`-I`・`-D` は、状態行を届いたまま(`HTTP/1.1 200 OK`)、見出しの名前を元の綴りのまま、CRLF で書き、最後に空の行を書きます(curl と同じ)。
+2. **`-v` は送るとおりの要求を見せる。** `> ` の行は http の `要求頭文にする` から作るので、既定の見出しも入ります。`* ` の行(つなぐところの様子)はまだなく、本文は見せません。
+3. **`-w`。** `\n`・`\t`・`\r`・`\\` は文字に、`%%` は `%` にします。`%{time_total}` は要求を送り始めてから本文の終わりまでの秒数(小数点の下6桁)です。`%{num_redirects}` は `-L` ができるまで 0 です。知らない `%{…}` はそのまま残し、`@ファイル` はまだ読みません。
+
 ### 終了コード
 
 1. **番号は curl に合わせる。** 本体と http の失敗の文から決めます(たとえば `接続する` の失敗で、理由が名前のことなら 6、ほかは 7)。知らせは日本語で、curl と同じく番号を括弧に入れます: `surl: (7) 『127.0.0.1:1』につなげませんでした(Connection refused)`。
@@ -119,7 +131,7 @@ kumu 点検
 
 ## 今後の候補
 
-次の段階は [#1](https://github.com/suru-lang/surl/issues/1) にあります: 見る(`-i`・`-v`・`-w` など)、転送をたどる(`-L`)、時間切れとやり直し、`kumu 導入` で入れる。
+次の段階は [#1](https://github.com/suru-lang/surl/issues/1) にあります: 転送をたどる(`-L`)、時間切れとやり直し、`kumu 導入` で入れる。
 
 ## ライセンス
 
