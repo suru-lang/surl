@@ -62,6 +62,7 @@ jobs:
           check 22 -sf $U/none
           check 7 -s http://127.0.0.1:1/
           check 6 -s http://nonexistent.invalid/
-          check 23 -s -O $U/
+          # 新しい curl は名前のない -O を curl_response に書くので、surl だけを確かめる
+          [ "$(code "$S" -s -O $U/)" = 23 ]
           check 2 -s --zz $U/
           kill %1

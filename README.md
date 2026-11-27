@@ -46,7 +46,7 @@ surl example.com                          # without a scheme, http://
 | 7 | Cannot connect |
 | 8 | The answer is not HTTP |
 | 22 | `-f` and a status of 400 or more |
-| 23 | Cannot write the output, or `-O` has no name |
+| 23 | Cannot write the output, or `-O` has no name (newer curl writes `curl_response` instead) |
 | 35 | TLS failed |
 | 56 | The connection broke while receiving |
 | 60 | The certificate could not be verified |
