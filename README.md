@@ -4,7 +4,7 @@
 
 A curl-like command for HTTP and HTTPS, written in [Suru](https://github.com/suru-lang/suru), the Japanese programming language. It is built on the client of [suru-lang/http](https://github.com/suru-lang/http) and becomes one binary. The options are spelled as in curl, and the exit codes follow curl, so hands and scripts that know curl can use it as is.
 
-It is being built in stages (plan: [#1](https://github.com/suru-lang/surl/issues/1)). This version can send requests with methods, headers and data, write the body, show the headers and timings, and follow redirects.
+It is being built in stages (plan: [#1](https://github.com/suru-lang/surl/issues/1)). This version can send requests with methods, headers and data, write the body, show the headers and timings, follow redirects, and give up or retry on time limits.
 
 ## Building
 
@@ -60,6 +60,10 @@ surl -L http://example.com/old            # follow redirects
 | `-w 書式`, `--write-out 書式` | Write after the transfer (`%{http_code}`, `%{response_code}`, `%{size_download}`, `%{size_header}`, `%{time_total}`, `%{url_effective}`, `%{content_type}`, `%{method}`, `%{num_redirects}`) |
 | `-L`, `--location` | Follow a 301, 302, 303, 307 or 308 that has a `Location` |
 | `--max-redirs 数` | The most redirects to follow (50 by default, -1 for no limit) |
+| `--connect-timeout 秒` | Give up connecting after that many seconds (fractions work) |
+| `-m 秒`, `--max-time 秒` | Give up a transfer that takes longer |
+| `--retry 回数` | Try again after a timeout or a status of 408, 429, 500, 502, 503 or 504 |
+| `--retry-delay 秒` | Seconds to wait before trying again (by default 1, 2, 4, … up to 600) |
 | `-h`, `--help` | Print the usage |
 | `-V`, `--version` | Print the version |
 
@@ -73,6 +77,7 @@ surl -L http://example.com/old            # follow redirects
 | 8 | The answer is not HTTP |
 | 22 | `-f` and a status of 400 or more |
 | 23 | Cannot write the output, or `-O` has no name (newer curl writes `curl_response` instead) |
+| 28 | Timed out (`--connect-timeout`, `-m`) |
 | 35 | TLS failed |
 | 47 | More redirects than `--max-redirs` |
 | 56 | The connection broke while receiving |
@@ -127,6 +132,13 @@ The body itself can also be used from Suru: `取得内のコマンド実行す�
 4. **Credentials stay with the host.** When the host changes, `-u` and the `Authorization` and `Cookie` of `-H` are not sent (there is no `--location-trusted`). `-b` is still sent.
 5. **Every response head is shown.** `-i`, `-I`, `-D` and `-v` show the head of each response in order, as curl does; only the last body is written. `-O` takes its name from the first URL.
 
+### Time limits and retries
+
+1. **The limits come from the core and http.** `--connect-timeout` is `通信内の期限付き接続する` (through http's `接続期限設定する`), so it also holds for https. Every time limit gives exit code 28.
+2. **`-m` is close to curl's.** Connecting waits at most the shorter of `--connect-timeout` and `-m`, every single receive and send (the TLS handshake too) waits at most `-m`, and the time is checked again each time a piece of the body is written. A server that keeps sending a little at a time can therefore go somewhat past `-m`, until the next piece arrives. With `-L` the limit is for each request.
+3. **What is retried.** As in curl, a timeout and a status of 408, 429, 500, 502, 503 or 504 are retried; a refused connection is not (there is no `--retry-connrefused`). The body of a response that will be retried is not written. Before each retry, surl says on standard error how long it waits and how many tries are left (not with `-s`). `--retry-max-time` and `--retry-all-errors` are not made.
+4. **The wait.** Without `--retry-delay`, it waits 1 second, then 2, 4 and so on, up to 10 minutes, as curl does. A `Retry-After` header is not read.
+
 ### Exit codes
 
 1. **The numbers follow curl.** They are decided from the text of the failure of the core and of http (for example, a failure of `接続する` whose reason is about the name is 6, and otherwise 7). The messages are in Japanese, with the number in parentheses as in curl: `surl: (7) 『127.0.0.1:1』につなげませんでした(Connection refused)`.
@@ -143,7 +155,7 @@ The tests in `試験/` read arguments, and fetch from a small server started in 
 
 ## Future work
 
-The next stages are in [#1](https://github.com/suru-lang/surl/issues/1): timeouts and retries, and installing with `kumu 導入`.
+The next stage is in [#1](https://github.com/suru-lang/surl/issues/1): installing with `kumu 導入`. Other candidates: `* ` lines of `-v`, `-w @file`, `-#`, `--retry-max-time`, `Retry-After`.
 
 ## License
 

@@ -117,4 +117,11 @@ jobs:
           code() { "$@" > /dev/null 2>&1; echo $?; }
           check 47 -sL --max-redirs 1 "$R/302?to=/redir/302%3Fto%3D/x"
           check 0 -sL --max-redirs 2 "$R/302?to=/redir/302%3Fto%3D/x"
-          kill %1
+          # 時間: 何も返さない相手に -m、届かないアドレスに --connect-timeout、503 を --retry
+          python3 -c 'import socket,time; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); s.bind(("127.0.0.1",18557)); s.listen(50); c=[s.accept() for _ in range(9)]; time.sleep(30)' &
+          sleep 0.5
+          check 28 -s -m 1 http://127.0.0.1:18557/
+          check 28 -s --connect-timeout 1 http://10.255.255.1/
+          check 22 -sf --retry 2 --retry-delay 0 $U/code/503
+          [ "$("$S" -f --retry 1 --retry-delay 0 $U/code/503 2>&1 | grep -c 'やり直します')" = 1 ]
+          kill %1 %2
