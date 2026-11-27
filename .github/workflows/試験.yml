@@ -95,4 +95,26 @@ jobs:
           F='%{http_code} %{response_code} %{method} %{url_effective} %{num_redirects}\n'
           [ "$("$S" -s -o /dev/null -w "$F" $U/w)" = "$(curl -s -o /dev/null -w "$F" $U/w)" ]
           [ "$("$S" -s -o /dev/null -w '%{size_download}' $U/w)" -gt 0 ]
+          # たどる: -L・--max-redirs
+          R=$U/redir
+          same $R/302?to=/x
+          same -L $R/302?to=/x
+          same -L -d a=1 $R/301?to=/x
+          same -L -d a=1 $R/302?to=x
+          same -L -d a=1 $R/303?to=%3Fq%3D1
+          same -L -d a=1 $R/307?to=/x
+          same -L -d a=1 $R/308?to=/x
+          same -L -I -A x $R/303?to=/x
+          same -L -X DELETE -d a=1 $R/302?to=/x
+          same -L -G -d a=1 $R/307?to=/x
+          same -L -u u:p $R/302?to=/x
+          same -L -u u:p -H "Cookie: c=1" "$R/302?to=http://localhost:18556/x"
+          same -L "$R/302?to=/redir/307%3Fto%3D/x"
+          F='%{http_code} %{num_redirects} %{url_effective}\n'
+          [ "$("$S" -sL -o /dev/null -w "$F" "$R/302?to=/redir/301%3Fto%3D/x")" = "$(curl -sL -o /dev/null -w "$F" "$R/302?to=/redir/301%3Fto%3D/x")" ]
+          [ "$("$S" -sLi $R/302?to=/x | grep -c '^HTTP/')" = 2 ]
+          check() { want=$1; shift; got=$(code "$S" "$@"); curlgot=$(code curl "$@"); echo "$* → surl $got / curl $curlgot"; [ "$got" = "$want" ] && [ "$curlgot" = "$want" ]; }
+          code() { "$@" > /dev/null 2>&1; echo $?; }
+          check 47 -sL --max-redirs 1 "$R/302?to=/redir/302%3Fto%3D/x"
+          check 0 -sL --max-redirs 2 "$R/302?to=/redir/302%3Fto%3D/x"
           kill %1

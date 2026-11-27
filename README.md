@@ -4,7 +4,7 @@
 
 A curl-like command for HTTP and HTTPS, written in [Suru](https://github.com/suru-lang/suru), the Japanese programming language. It is built on the client of [suru-lang/http](https://github.com/suru-lang/http) and becomes one binary. The options are spelled as in curl, and the exit codes follow curl, so hands and scripts that know curl can use it as is.
 
-It is being built in stages (plan: [#1](https://github.com/suru-lang/surl/issues/1)). This version can send requests with methods, headers and data, write the body, and show the headers and timings.
+It is being built in stages (plan: [#1](https://github.com/suru-lang/surl/issues/1)). This version can send requests with methods, headers and data, write the body, show the headers and timings, and follow redirects.
 
 ## Building
 
@@ -30,6 +30,7 @@ surl -X DELETE -H "Authorization: Bearer x" https://example.com/item/1
 surl -I https://example.com/              # headers only
 surl -v https://example.com/              # what is sent and what comes back, on standard error
 surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
+surl -L http://example.com/old            # follow redirects
 ```
 
 | Option | Meaning |
@@ -57,6 +58,8 @@ surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
 | `-v`, `--verbose` | Show the request head (`> `) and the response head (`< `) on standard error |
 | `-D 道`, `--dump-header 道` | Write the status line and headers to the path (`-` is standard output) |
 | `-w 書式`, `--write-out 書式` | Write after the transfer (`%{http_code}`, `%{response_code}`, `%{size_download}`, `%{size_header}`, `%{time_total}`, `%{url_effective}`, `%{content_type}`, `%{method}`, `%{num_redirects}`) |
+| `-L`, `--location` | Follow a 301, 302, 303, 307 or 308 that has a `Location` |
+| `--max-redirs 数` | The most redirects to follow (50 by default, -1 for no limit) |
 | `-h`, `--help` | Print the usage |
 | `-V`, `--version` | Print the version |
 
@@ -71,6 +74,7 @@ surl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://example.com/
 | 22 | `-f` and a status of 400 or more |
 | 23 | Cannot write the output, or `-O` has no name (newer curl writes `curl_response` instead) |
 | 35 | TLS failed |
+| 47 | More redirects than `--max-redirs` |
 | 56 | The connection broke while receiving |
 | 60 | The certificate could not be verified |
 
@@ -113,7 +117,15 @@ The body itself can also be used from Suru: `取得内のコマンド実行す�
 
 1. **Headers are written as they arrived.** `-i`, `-I` and `-D` write the status line as received (`HTTP/1.1 200 OK`) and the header names in their original spelling, with CRLF, then a blank line, as curl does.
 2. **`-v` shows the request exactly as sent.** The `> ` lines come from http's `要求頭文にする`, so they include the default headers. There are no `* ` lines yet (connection details), and the body is not shown.
-3. **`-w`.** `\n`, `\t`, `\r` and `\\` are turned into the characters and `%%` into `%`. `%{time_total}` is seconds with six decimals, from sending the request to the end of the body. `%{num_redirects}` is 0 until `-L` comes. Unknown `%{…}` are left as they are, and `@file` is not read yet.
+3. **`-w`.** `\n`, `\t`, `\r` and `\\` are turned into the characters and `%%` into `%`. `%{time_total}` is seconds with six decimals, from sending the request to the end of the body. `%{num_redirects}` is the number of redirects followed, `%{url_effective}` the last URL, and `%{size_header}` counts the headers of every response. Unknown `%{…}` are left as they are, and `@file` is not read yet.
+
+### Following redirects
+
+1. **What is followed.** With `-L`, a 301, 302, 303, 307 or 308 response with a `Location` header is followed; its body is not read. Without `-L`, the redirect response itself is the answer (exit code 0). Going past `--max-redirs` is exit code 47.
+2. **The method, as curl does.** A request that sends data (whatever `-X` says) becomes bodyless after 301 or 302, and every request but `-I` after 303; without `-X` it becomes GET, and with `-X` the method stays. 307 and 308 send the same method and body again. The data of `-G` was put in the first URL and is not added again.
+3. **Location.** An absolute URL, `//host/path`, `/path`, `?query` and a relative path are read from the current URL. `.` and `..` in the path are sent as they are.
+4. **Credentials stay with the host.** When the host changes, `-u` and the `Authorization` and `Cookie` of `-H` are not sent (there is no `--location-trusted`). `-b` is still sent.
+5. **Every response head is shown.** `-i`, `-I`, `-D` and `-v` show the head of each response in order, as curl does; only the last body is written. `-O` takes its name from the first URL.
 
 ### Exit codes
 
@@ -131,7 +143,7 @@ The tests in `試験/` read arguments, and fetch from a small server started in 
 
 ## Future work
 
-The next stages are in [#1](https://github.com/suru-lang/surl/issues/1): following redirects (`-L`), timeouts and retries, and installing with `kumu 導入`.
+The next stages are in [#1](https://github.com/suru-lang/surl/issues/1): timeouts and retries, and installing with `kumu 導入`.
 
 ## License
 
